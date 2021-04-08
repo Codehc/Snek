@@ -9,6 +9,7 @@ typedef struct {
 typedef struct {
     point loc;
     direction dir;
+    direction nextDir;
 } tailSegment;
 
 typedef struct {
@@ -17,8 +18,8 @@ typedef struct {
     tailSegment tail[20];
 } snake;
 
-void input(snake * snek, bool * gameOn, direction * oldDir);
-void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY, direction * oldDir);
+void input(snake * snek, bool * gameOn);
+void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY);
 void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY);
 
 int genAppleX(int screenX);

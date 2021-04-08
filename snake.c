@@ -7,7 +7,6 @@
 #include "snake.h"
 
 int tps = 4;
-direction dir = FREEZE;
 int screenX = 20;
 int screenY = 10;
 
@@ -22,6 +21,7 @@ int main() {
     snake * snek = (snake *) malloc(sizeof(snake));
     snek->loc.x = (screenX - 2) / 2;
     snek->loc.y = (screenY - 2) / 2;
+    snek->dir = FREEZE;
 
     int i;
     for (i = 0; i < 20; i++) {
@@ -34,16 +34,15 @@ int main() {
 
     // Main event loop
     while (gameOn) {
-        input(snek, &gameOn, &oldDir);
-        move(screenX, screenY, snek, &gameOn, &appleX, &appleY, &oldDir);
+        input(snek, &gameOn);
+        move(screenX, screenY, snek, &gameOn, &appleX, &appleY);
         draw(screenX, screenY, snek, &gameOn, &appleX, &appleY);
         cycleFramPos++;
         usleep(1000000 / tps);
     }
 }
 
-void input(snake * snek, bool * gameOn, direction * oldDir) {
-    *oldDir = dir;
+void input(snake * snek, bool * gameOn) {
     // If keyboard is pressed
     if (kbhit()) {
         // Store the key pressed in this
@@ -51,29 +50,29 @@ void input(snake * snek, bool * gameOn, direction * oldDir) {
 
         // Change the Snakes direction based on the key pressed
         if (charPressed == *"w") {
-            dir = FORWARD;
+            snek->dir = FORWARD;
         } else if (charPressed == *"a") {
-            dir = LEFT;
+            snek->dir = LEFT;
         } else if (charPressed == *"s") {
-            dir = BACKWARD;
+            snek->dir = BACKWARD;
         } else if (charPressed == *"d") {
-            dir = RIGHT;
+            snek->dir = RIGHT;
         }
     }
 }
 
-void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY, direction * oldDir) {
+void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY) {
     screenX = screenX - 2;
     screenY = screenY -2;
 
     // Increment head location based on direction stored
-    if (dir == FORWARD) {
+    if (snek->dir == FORWARD) {
         snek->loc.y--;
-    } else if (dir == LEFT) {
+    } else if (snek->dir == LEFT) {
         snek->loc.x--;
-    } else if (dir == BACKWARD) {
+    } else if (snek->dir == BACKWARD) {
         snek->loc.y++;
-    } else if (dir == RIGHT) {
+    } else if (snek->dir == RIGHT) {
         snek->loc.x++;
     }
 
@@ -94,7 +93,17 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 
         tailSegment * tail = &snek->tail[i];
         if (tail->loc.x != -1) {
-            // TODO: Turn snek
+            // Turn tail direction
+            tail->dir = tail->nextDir;
+
+            // Set next dir
+            if (i == 0) {
+                // Only tail, set next direction to snek head direction
+                tail->nextDir = snek->dir;
+            } else {
+                // There are other tail segments in front
+                tail->nextDir = snek->tail[i - 1].dir;
+            }
 
             // Increment new location based on direction stored
             if (tail->dir == FORWARD) {
@@ -129,7 +138,7 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
             lastTailCoords->y = lastTail.loc.y;
         } else {
             // No tail segments, set to head info
-            lastDirection = dir;
+            lastDirection = snek->dir;
             lastTailCoords->x = snek->loc.x;
             lastTailCoords->y = snek->loc.y;
         }
@@ -158,6 +167,16 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
                 tail->loc.x = newCoords->x;
                 tail->loc.y = newCoords->y;
                 tail->dir = lastDirection;
+                
+                // Set next dir
+                if (i == 0) {
+                    // Only tail, set next direction to snek head direction
+                    tail->nextDir = snek->dir;
+                } else {
+                    // There are other tail segments in front
+                    tail->nextDir = snek->tail[i - 1].dir;
+                }
+                                
                 break;
             }
         }
@@ -211,13 +230,13 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 
             if (snek->loc.x + 1 == x && snek->loc.y + 1 == y) {
                 // Snake head
-                if (dir == FORWARD) {
+                if (snek->dir == FORWARD) {
                     printf("^");
-                } else if (dir == LEFT) {  
+                } else if (snek->dir == LEFT) {  
                     printf("<");
-                } else if (dir == BACKWARD) {
+                } else if (snek->dir == BACKWARD) {
                     printf("V");
-                } else if (dir == RIGHT) {
+                } else if (snek->dir == RIGHT) {
                     printf(">");
                 } else {
                     printf("&");
