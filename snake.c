@@ -76,16 +76,6 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
         snek->loc.x++;
     }
 
-    int l;
-    for (l = 0; l < getTailSegments(snek); l++) {
-        tailSegment * tail = &snek->tail[l];
-        if (tail->loc.x != -1) {
-            if (tail->loc.x == snek->loc.x && tail->loc.y == snek->loc.y) {
-                gameOn = false;
-            }
-        }
-    }
-
     // Move tail points
     int i;
     for (i = 0; i < 20; i++) {
@@ -182,6 +172,17 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
         }
     }
 
+    // Detect collisions with tail
+    int l;
+    for (l = 0; l < 20; l++) {
+        tailSegment tail = snek->tail[l];
+        if (tail.loc.x != -1) {
+            if (tail.loc.x == snek->loc.x && tail.loc.y == snek->loc.y) {
+                *gameOn = false;
+            }
+        }
+    }
+
     // Clamp headX
     if (snek->loc.x > screenX) {
         *gameOn = false;
@@ -199,7 +200,15 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 
 void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY) {
     if (!*gameOn) {
-        printf("GAME OVER");
+        int spamNum = (screenY/2) - 1;
+        for (int i = 0; i < spamNum; i++) {
+            printf("\n");
+        }
+        printf("GAME OVER\nScore: %d", getTailSegments(snek));
+        for (int i = 0; i < spamNum; i++) {
+            printf("\n");
+        }
+        free(snek);
         return;
     }
 
