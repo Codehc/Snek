@@ -7,7 +7,6 @@
 #include "snake.h"
 
 int tps = 4;
-direction dir = FREEZE;
 int screenX = 20;
 int screenY = 10;
 
@@ -20,41 +19,30 @@ int main() {
     int appleY = genAppleY(screenY);
 
     snake * snek = (snake *) malloc(sizeof(snake));
-    snek->headX = (screenX - 2) / 2;
-    snek->headY = (screenY - 2) / 2;
+    snek->loc.x = (screenX - 2) / 2;
+    snek->loc.y = (screenY - 2) / 2;
+    snek->dir = FREEZE;
 
     int i;
     for (i = 0; i < 20; i++) {
-        turnPoint * turn = &snek->turns[i];
-        turn->x = -1;
-        turn->y = -1;
-
         tailSegment * tail = &snek->tail[i];
-        tail->x = -1;
-        tail->y = -1;
-    }
-
-    for (i = 0; i < 20; i++) {
-        tailSegment * tail = &snek->tail[i];
-        printf("Alpha (%d, %d)  ", tail->x, tail->y);
-        tailSegment tailN = snek->tail[i];
-        printf("Beta (%d, %d)\n", tailN.x, tailN.y);
+        tail->loc.x = -1;
+        tail->loc.y = -1;
     }
 
     int cycleFramPos = 0;
 
     // Main event loop
     while (gameOn) {
-        input(snek, &gameOn, &oldDir);
-        move(screenX, screenY, snek, &gameOn, &appleX, &appleY, &oldDir);
+        input(snek, &gameOn);
+        move(screenX, screenY, snek, &gameOn, &appleX, &appleY);
         draw(screenX, screenY, snek, &gameOn, &appleX, &appleY);
         cycleFramPos++;
         usleep(1000000 / tps);
     }
 }
 
-void input(snake * snek, bool * gameOn, direction * oldDir) {
-    *oldDir = dir;
+void input(snake * snek, bool * gameOn) {
     // If keyboard is pressed
     if (kbhit()) {
         // Store the key pressed in this
@@ -62,99 +50,65 @@ void input(snake * snek, bool * gameOn, direction * oldDir) {
 
         // Change the Snakes direction based on the key pressed
         if (charPressed == *"w") {
-            dir = FORWARD;
+            snek->dir = FORWARD;
         } else if (charPressed == *"a") {
-            dir = LEFT;
+            snek->dir = LEFT;
         } else if (charPressed == *"s") {
-            dir = BACKWARD;
+            snek->dir = BACKWARD;
         } else if (charPressed == *"d") {
-            dir = RIGHT;
+            snek->dir = RIGHT;
         }
     }
 }
 
-void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY, direction * oldDir) {
+void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY) {
     screenX = screenX - 2;
     screenY = screenY -2;
 
-    // Add turn point if needed
-    if (*oldDir != dir) {
-        // Direction has changed.
-        if (getTailSegments(snek) > 0) {
-            int i;
-            for (i = 0; i < 20; i++) {
-                turnPoint * turn = &snek->turns[i];
-                if (turn->x == -1) {
-                    turn->x = snek->headX;
-                    turn->y = snek->headY;
-                    turn->newDir = dir;
-                    turn->oldDir = *oldDir;
-                    break;
-                }
-            }
-        }
-    }
-
     // Increment head location based on direction stored
-    if (dir == FORWARD) {
-        snek->headY--;
-    } else if (dir == LEFT) {
-        snek->headX--;
-    } else if (dir == BACKWARD) {
-        snek->headY++;
-    } else if (dir == RIGHT) {
-        snek->headX++;
-    }
-
-    int l;
-    for (l = 0; l < getTailSegments(snek); l++) {
-        tailSegment * tail = &snek->tail[l];
-        if (tail->x != -1) {
-            if (tail->x == snek->headX && tail->y == snek->headY) {
-                gameOn = false;
-            }
-        }
+    if (snek->dir == FORWARD) {
+        snek->loc.y--;
+    } else if (snek->dir == LEFT) {
+        snek->loc.x--;
+    } else if (snek->dir == BACKWARD) {
+        snek->loc.y++;
+    } else if (snek->dir == RIGHT) {
+        snek->loc.x++;
     }
 
     // Move tail points
     int i;
     for (i = 0; i < 20; i++) {
-        bool isLastTail = snek->tail[i + 1].x == -1;
+        bool isLastTail = snek->tail[i + 1].loc.x == -1;
 
         tailSegment * tail = &snek->tail[i];
-        if (tail->x != -1) {
-            // Check if tail is on turn point
-            int i;
-            for (i = 0; i < getTurns(snek); i++) {
-                turnPoint * turn = &snek->turns[i];
-                if (turn->x != -1) {
-                    if (tail->x == turn->x && tail->y == turn->y) {
-                        // Tail is on a turn point, change its direction
-                        tail->dir = turn->newDir;
+        if (tail->loc.x != -1) {
+            // Turn tail direction
+            tail->dir = tail->nextDir;
 
-                        // If this is the last tail then delete the turn point
-                        if (isLastTail) {
-                            turn->x = -1;
-                            turn->y = -1;
-                        }
-                    }
-                }
+            // Set next dir
+            if (i == 0) {
+                // Only tail, set next direction to snek head direction
+                tail->nextDir = snek->dir;
+            } else {
+                // There are other tail segments in front
+                tail->nextDir = snek->tail[i - 1].dir;
             }
 
             // Increment new location based on direction stored
             if (tail->dir == FORWARD) {
-               tail->y--;
+               tail->loc.y--;
             } else if (tail->dir == LEFT) {  
-                tail->x--;
+                tail->loc.x--;
             } else if (tail->dir == BACKWARD) {
-                tail->y++;
+                tail->loc.y++;
             } else if (tail->dir == RIGHT) {
-                tail->x++;
+                tail->loc.x++;
             }
         }
     }
 
-    if (*appleX == snek->headX + 1 && *appleY == snek->headY + 1) {
+    if (*appleX == snek->loc.x + 1 && *appleY == snek->loc.y + 1) {
         // Eat the apple
         *appleX = genAppleX(screenX);
         *appleY = genAppleY(screenY);
@@ -167,23 +121,23 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
         tailSegment lastTail = snek->tail[adjIndex];
         direction lastDirection;
         point * lastTailCoords = (point *) malloc(sizeof(point));
-        if (lastTail.x != -1) {
+        if (lastTail.loc.x != -1) {
             // Set last direction to the last segments info
             lastDirection = lastTail.dir;
-            lastTailCoords->x = lastTail.x;
-            lastTailCoords->y = lastTail.y;
+            lastTailCoords->x = lastTail.loc.x;
+            lastTailCoords->y = lastTail.loc.y;
         } else {
             // No tail segments, set to head info
-            lastDirection = dir;
-            lastTailCoords->x = snek->headX;
-            lastTailCoords->y = snek->headY;
+            lastDirection = snek->dir;
+            lastTailCoords->x = snek->loc.x;
+            lastTailCoords->y = snek->loc.y;
         }
 
         // Add new tail point
         int i;
         for (i = 0; i < 20; i++) {
             tailSegment * tail = &snek->tail[i];
-            if (tail->x == -1) {
+            if (tail->loc.x == -1) {
                 // Generate new coords
                 point * newCoords = (point *) malloc(sizeof(point));
                 newCoords->x = lastTailCoords->x;
@@ -200,32 +154,61 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
                     newCoords->x--;
                 }
 
-                tail->x = newCoords->x;
-                tail->y = newCoords->y;
+                tail->loc.x = newCoords->x;
+                tail->loc.y = newCoords->y;
                 tail->dir = lastDirection;
+                
+                // Set next dir
+                if (i == 0) {
+                    // Only tail, set next direction to snek head direction
+                    tail->nextDir = snek->dir;
+                } else {
+                    // There are other tail segments in front
+                    tail->nextDir = snek->tail[i - 1].dir;
+                }
+                                
                 break;
             }
         }
     }
 
+    // Detect collisions with tail
+    int l;
+    for (l = 0; l < 20; l++) {
+        tailSegment tail = snek->tail[l];
+        if (tail.loc.x != -1) {
+            if (tail.loc.x == snek->loc.x && tail.loc.y == snek->loc.y) {
+                *gameOn = false;
+            }
+        }
+    }
+
     // Clamp headX
-    if (snek->headX > screenX) {
+    if (snek->loc.x > screenX) {
         *gameOn = false;
-    } else if (snek->headX < 0) {
+    } else if (snek->loc.x < 0) {
         *gameOn = false;
     }
 
     // Clamp headY
-    if (snek->headY > screenY) {
+    if (snek->loc.y > screenY) {
         *gameOn = false;
-    } else if (snek->headY < 0) {
+    } else if (snek->loc.y < 0) {
         *gameOn = false;
     }
 }
 
 void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY) {
     if (!*gameOn) {
-        printf("GAME OVER");
+        int spamNum = (screenY/2) - 1;
+        for (int i = 0; i < spamNum; i++) {
+            printf("\n");
+        }
+        printf("GAME OVER\nScore: %d", getTailSegments(snek));
+        for (int i = 0; i < spamNum; i++) {
+            printf("\n");
+        }
+        free(snek);
         return;
     }
 
@@ -254,15 +237,15 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
                 isPixelFull = true;
             }
 
-            if (snek->headX + 1 == x && snek->headY + 1 == y) {
+            if (snek->loc.x + 1 == x && snek->loc.y + 1 == y) {
                 // Snake head
-                if (dir == FORWARD) {
+                if (snek->dir == FORWARD) {
                     printf("^");
-                } else if (dir == LEFT) {  
+                } else if (snek->dir == LEFT) {  
                     printf("<");
-                } else if (dir == BACKWARD) {
+                } else if (snek->dir == BACKWARD) {
                     printf("V");
-                } else if (dir == RIGHT) {
+                } else if (snek->dir == RIGHT) {
                     printf(">");
                 } else {
                     printf("&");
@@ -275,22 +258,9 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
             for (i = 0; i < getTailSegments(snek); i++) {
                 if (!isPixelFull) {
                     tailSegment * tail = &snek->tail[i];
-                    if (tail->x != -1) {
-                        if (tail->x + 1 == x && tail->y + 1 == y) {
+                    if (tail->loc.x != -1) {
+                        if (tail->loc.x + 1 == x && tail->loc.y + 1 == y) {
                             printf("%d", i + 1);
-                            isPixelFull = true;
-                        }
-                    }
-                }
-            }
-
-            // Render turn points WARNING: TESTING ONLY
-            for (i = 0; i < getTurns(snek); i++) {
-                if (!isPixelFull) {
-                    turnPoint * turn = &snek->turns[i];
-                    if (turn->x != -1) {
-                        if (turn->x + 1 == x && turn->y + 1 == y) {
-                            printf("@");
                             isPixelFull = true;
                         }
                     }
@@ -313,24 +283,11 @@ int genAppleY(int screenY) {
     return (rand() % ((screenY - 2) + 1));
 }
 
-int getTurns(snake * snek) {
-    int i;
-    for (i=0; i < 20; i++) {
-        turnPoint nextTurn = snek->turns[i + 1];
-        if (nextTurn.x == -1) {
-           // Last turn point
-           i++;
-           break;
-        }
-    }
-    return i;
-}
-
 int getTailSegments(snake * snek) {
     int i;
     for (i=0; i < 20; i++) {
         tailSegment tail = snek->tail[i];
-        if (tail.x == -1) {
+        if (tail.loc.x == -1) {
            // Last tail segment
            break;
         }
