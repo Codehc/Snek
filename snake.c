@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "snake.h"
 
@@ -50,13 +51,21 @@ void input(snake * snek, bool * gameOn) {
 
         // Change the Snakes direction based on the key pressed
         if (charPressed == *"w") {
-            snek->dir = FORWARD;
+            if (snek->dir != BACKWARD) {
+                snek->dir = FORWARD;
+            }
         } else if (charPressed == *"a") {
-            snek->dir = LEFT;
+            if (snek->dir != RIGHT) {
+                snek->dir = LEFT;
+            }
         } else if (charPressed == *"s") {
-            snek->dir = BACKWARD;
+            if (snek->dir != FORWARD) {
+                snek->dir = BACKWARD;
+            }
         } else if (charPressed == *"d") {
-            snek->dir = RIGHT;
+            if (snek->dir != LEFT) {
+                snek->dir = RIGHT;
+            }
         }
     }
 }
@@ -196,6 +205,10 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
     } else if (snek->loc.y < 0) {
         *gameOn = false;
     }
+    
+    if (getTailSegments(snek) == 20) {
+        *gameOn = false;
+    }
 }
 
 void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY) {
@@ -276,11 +289,15 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 }
 
 int genAppleX(int screenX) {
-    return (rand() % ((screenX - 2) + 1));
+    srand(time(NULL));
+    int gen = (rand() % ((screenX - 2) + 1)) + 1;
+    return gen;
 }
 
 int genAppleY(int screenY) {
-    return (rand() % ((screenY - 2) + 1));
+    srand(time(NULL));
+    int gen = (rand() % ((screenY - 2) + 1)) + 1;
+    return gen;
 }
 
 int getTailSegments(snake * snek) {
