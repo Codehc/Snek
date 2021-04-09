@@ -146,6 +146,7 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
         int i;
         for (i = 0; i < 20; i++) {
             tailSegment * tail = &snek->tail[i];
+            
             if (tail->loc.x == -1) {
                 // Generate new coords
                 point * newCoords = (point *) malloc(sizeof(point));
