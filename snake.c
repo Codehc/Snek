@@ -278,7 +278,7 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
                     tailSegment * tail = getSegment(snek->tailHead, i);
                     if (tail->loc.x != -1) {
                         if (tail->loc.x + 1 == x && tail->loc.y + 1 == y) {
-                            printf("%d", i + 1);
+                            printf("*");
                             isPixelFull = true;
                         }
                     }
