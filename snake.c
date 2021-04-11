@@ -19,17 +19,13 @@ int main() {
     int appleX = genAppleX(screenX);
     int appleY = genAppleY(screenY);
 
+    node * head = (node *) malloc(sizeof(node));
+    
     snake * snek = (snake *) malloc(sizeof(snake));
     snek->loc.x = (screenX - 2) / 2;
     snek->loc.y = (screenY - 2) / 2;
     snek->dir = FREEZE;
-
-    int i;
-    for (i = 0; i < 20; i++) {
-        tailSegment * tail = &snek->tail[i];
-        tail->loc.x = -1;
-        tail->loc.y = -1;
-    }
+    snek->tailHead = head;
 
     int cycleFramPos = 0;
 
@@ -87,11 +83,11 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 
     // Move tail points
     int i;
-    for (i = 0; i < 20; i++) {
-        bool isLastTail = snek->tail[i + 1].loc.x == -1;
+    for (i = 0; i < getSegments(snek->tailHead); i++) {
+        bool isLastTail = i == getSegments(snek->tailHead) - 1;
 
-        tailSegment * tail = &snek->tail[i];
-        if (tail->loc.x != -1) {
+        tailSegment * tail = getSegment(snek->tailHead, i);
+        if (tail != NULL) {
             // Turn tail direction
             tail->dir = tail->nextDir;
 
@@ -101,7 +97,7 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
                 tail->nextDir = snek->dir;
             } else {
                 // There are other tail segments in front
-                tail->nextDir = snek->tail[i - 1].dir;
+                tail->nextDir = getSegment(snek->tailHead, i - 1)->dir;
             }
 
             // Increment new location based on direction stored
@@ -118,23 +114,24 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
     }
 
     if (*appleX == snek->loc.x + 1 && *appleY == snek->loc.y + 1) {
+    //if (true) {
         // Eat the apple
         *appleX = genAppleX(screenX);
         *appleY = genAppleY(screenY);
 
         // Get last tail info
-        int adjIndex = getTailSegments(snek) - 1;
+        int adjIndex = getSegments(snek->tailHead) - 1;
         if (adjIndex == -1) {
             adjIndex = 0;
         }
-        tailSegment lastTail = snek->tail[adjIndex];
+        tailSegment * lastTail = getSegment(snek->tailHead, adjIndex);
         direction lastDirection;
         point * lastTailCoords = (point *) malloc(sizeof(point));
-        if (lastTail.loc.x != -1) {
+        if (lastTail != NULL) {
             // Set last direction to the last segments info
-            lastDirection = lastTail.dir;
-            lastTailCoords->x = lastTail.loc.x;
-            lastTailCoords->y = lastTail.loc.y;
+            lastDirection = lastTail->dir;
+            lastTailCoords->x = lastTail->loc.x;
+            lastTailCoords->y = lastTail->loc.y;
         } else {
             // No tail segments, set to head info
             lastDirection = snek->dir;
@@ -143,50 +140,60 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
         }
 
         // Add new tail point
-        int i;
-        for (i = 0; i < 20; i++) {
-            tailSegment * tail = &snek->tail[i];
-            if (tail->loc.x == -1) {
-                // Generate new coords
-                point * newCoords = (point *) malloc(sizeof(point));
-                newCoords->x = lastTailCoords->x;
-                newCoords->y = lastTailCoords->y;
+        int segments = getSegments(snek->tailHead);
 
-                // Increment new location based on direction stored
-                if (lastDirection == FORWARD) {
-                    newCoords->y++;
-                } else if (lastDirection == LEFT) {  
-                    newCoords->x++;
-                } else if (lastDirection == BACKWARD) {
-                    newCoords->y--;
-                } else if (lastDirection == RIGHT) {
-                    newCoords->x--;
-                }
+        tailSegment * tail = (tailSegment *) malloc(sizeof(tailSegment));
 
-                tail->loc.x = newCoords->x;
-                tail->loc.y = newCoords->y;
-                tail->dir = lastDirection;
-                
-                // Set next dir
-                if (i == 0) {
-                    // Only tail, set next direction to snek head direction
-                    tail->nextDir = snek->dir;
-                } else {
-                    // There are other tail segments in front
-                    tail->nextDir = snek->tail[i - 1].dir;
-                }
-                                
-                break;
-            }
+         // Generate new coords
+        point * newCoords = (point *) malloc(sizeof(point));
+        newCoords->x = lastTailCoords->x;
+        newCoords->y = lastTailCoords->y;
+
+        // Increment new location based on direction stored
+        if (lastDirection == FORWARD) {
+            newCoords->y++;
+        } else if (lastDirection == LEFT) {  
+            newCoords->x++;
+        } else if (lastDirection == BACKWARD) {
+            newCoords->y--;
+        } else if (lastDirection == RIGHT) {
+            newCoords->x--;
+        }
+
+        tail->loc.x = newCoords->x;
+        tail->loc.y = newCoords->y;
+        tail->dir = lastDirection;
+        
+        // Set next dir
+        if (segments == 0) {
+            // Only tail, set next direction to snek head direction
+            tail->nextDir = snek->dir;
+        } else {
+            // There are other tail segments in front
+            tail->nextDir = getSegment(snek->tailHead, segments - 1)->dir;
+        }
+
+        // Create next node (NOT SEGMENT, NODE)
+        node * nextNode = (node *) malloc(sizeof(node));
+
+        nextNode->segment = tail;
+
+        if (segments > 0) {
+            // Get last node
+            node * lastNode = getNode(snek->tailHead, segments - 1);
+
+            lastNode->nextNode = nextNode;
+        } else {
+            snek->tailHead = nextNode;
         }
     }
 
     // Detect collisions with tail
     int l;
     for (l = 0; l < 20; l++) {
-        tailSegment tail = snek->tail[l];
-        if (tail.loc.x != -1) {
-            if (tail.loc.x == snek->loc.x && tail.loc.y == snek->loc.y) {
+        tailSegment * tail = getSegment(snek->tailHead, l);
+        if (tail != NULL) {
+            if (tail->loc.x == snek->loc.x && tail->loc.y == snek->loc.y) {
                 *gameOn = false;
             }
         }
@@ -205,10 +212,6 @@ void move(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
     } else if (snek->loc.y < 0) {
         *gameOn = false;
     }
-    
-    if (getTailSegments(snek) == 20) {
-        *gameOn = false;
-    }
 }
 
 void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, int * appleY) {
@@ -217,7 +220,7 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
         for (int i = 0; i < spamNum; i++) {
             printf("\n");
         }
-        printf("GAME OVER\nScore: %d", getTailSegments(snek));
+        printf("GAME OVER\nScore: %d", getSegments(snek->tailHead));
         for (int i = 0; i < spamNum; i++) {
             printf("\n");
         }
@@ -227,6 +230,8 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 
     int x;
     int y;
+
+    printf("Segments: %d\n", getSegments(snek->tailHead));
 
     for (y = 0; y <= screenY; y++) {
         for (x = 0; x <= screenX; x++) {
@@ -268,9 +273,9 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 
             // Render tail points
             int i;
-            for (i = 0; i < getTailSegments(snek); i++) {
+            for (i = 0; i < getSegments(snek->tailHead); i++) {
                 if (!isPixelFull) {
-                    tailSegment * tail = &snek->tail[i];
+                    tailSegment * tail = getSegment(snek->tailHead, i);
                     if (tail->loc.x != -1) {
                         if (tail->loc.x + 1 == x && tail->loc.y + 1 == y) {
                             printf("%d", i + 1);
@@ -300,14 +305,88 @@ int genAppleY(int screenY) {
     return gen;
 }
 
-int getTailSegments(snake * snek) {
-    int i;
-    for (i=0; i < 20; i++) {
-        tailSegment tail = snek->tail[i];
-        if (tail.loc.x == -1) {
-           // Last tail segment
-           break;
+void addSegment(node * head, tailSegment * segment) {
+    // Set the current node
+    node * current = head;
+
+    // Go to last segment in the list
+    for (int i = 0; i < getSegments(head); i++) {
+        // Set the current to the next node
+        current = current->nextNode;
+    }
+
+    // This is the last segment, update it with the new segment we want to add
+    current->segment = segment;
+}
+
+void removeSegment(node * head, int index) {
+    // Set the current node
+    node * current = head;
+
+    // Go to the segment at the correct index
+    for (int i = 0; i < index; i++) {
+        // Set the current to the next node
+        current = current->nextNode;
+    }
+
+    // Remove the node by resetting values
+    current->segment = NULL;
+    current->nextNode = NULL;
+}
+
+tailSegment * getSegment(node * head, unsigned int index) {
+    // Set the current node
+    node * current = head;
+
+    // Go to the node at the correct index
+    for (int i = 0; i < index; i++) {
+        // Set the current to the next node
+         if (current->nextNode != NULL) {
+            current = current->nextNode;
+        } else {
+            return NULL;
         }
     }
+
+    // current is equal to the node at the index specified
+    return current->segment;
+}
+
+int getSegments(node * head) {
+    // Set the current node
+    node * current = head;
+
+    // Counter int
+    int i = 0;
+
+    // Checks case where there is no first segment
+    if (current->segment != NULL) {
+        i++;
+        // Go to last node in the list
+        while (current->nextNode != NULL) {
+            // Set the current to the next node
+            current = current->nextNode;
+            i++;
+        }
+    }
+
     return i;
+}
+
+node * getNode(node * head, unsigned int index) {
+    // Set the current node
+    node * current = head;
+
+    // Go to the node at the correct index
+    for (int i = 0; i < index; i++) {
+        // Set the current to the next node
+         if (current->nextNode != NULL) {
+            current = current->nextNode;
+        } else {
+            return NULL;
+        }
+    }
+
+    // current is equal to the node at the index specified
+    return current;
 }

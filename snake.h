@@ -12,10 +12,15 @@ typedef struct {
     direction nextDir;
 } tailSegment;
 
+typedef struct nodeT {
+    tailSegment * segment;
+    struct nodeT * nextNode;
+} node;
+
 typedef struct {
     point loc;
     direction dir;
-    tailSegment tail[20];
+    node * tailHead;
 } snake;
 
 void input(snake * snek, bool * gameOn);
@@ -25,4 +30,10 @@ void draw(int screenX, int screenY, snake * snek, bool * gameOn, int * appleX, i
 int genAppleX(int screenX);
 int genAppleY(int screenY);
 
-int getTailSegments(snake * snek);
+
+void addSegment(node * head, tailSegment * segment);
+void removeSegment(node * head, int index);
+tailSegment * getSegment(node * head, unsigned int index);
+node * getNode(node * head, unsigned int index);
+
+int getSegments(node * head);
